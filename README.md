@@ -39,7 +39,7 @@ sudo apt install socat
 **Offline installation**
 
 ```
-sudo apt install ./deb/socat_1.7.4.1-3ubuntu4_amd64.deb
+sudo apt install ./deb/amd64/*.deb
 ```
 
 ### 2. Set User Permission
@@ -101,6 +101,50 @@ Usage:
 ```
 
 
+
+## Systemd Service Integration
+
+The Serial TCP Server can also be installed as a **systemd service**,
+ allowing it to automatically start at boot and be managed with `systemctl`.
+
+Serial TCP Server 也可以安裝為 **systemd 系統服務**，
+ 使其在開機時自動啟動，並能透過 `systemctl` 進行啟停與狀態管理。
+
+### Install the Service
+
+Make sure both scripts are executable, then install the service:
+
+```shell
+chmod +x service_install.sh service_remove.sh
+sudo ./service_install.sh
+```
+
+This will:
+
+- Create `/etc/systemd/system/serial-tcp-server.service`
+- Enable it to start at boot
+- Launch the service immediately
+
+**Manual Control**
+
+You can also manage it directly with `systemctl`:
+
+```shell
+sudo systemctl start serial-tcp-server.service
+sudo systemctl stop serial-tcp-server.service
+sudo systemctl restart serial-tcp-server.service
+sudo systemctl status serial-tcp-server.service # Check service status
+```
+
+> **Remove the Service**
+>
+> To uninstall or disable the service:
+>
+> ```
+> sudo ./service_remove.sh
+> ```
+>
+> This will stop and disable the service, then delete its definition from `/etc/systemd/system/`.
 
 
 
