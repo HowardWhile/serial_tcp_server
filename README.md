@@ -36,7 +36,7 @@ sudo apt update
 sudo apt install socat
 ```
 
-**Offline installation **
+**Offline installation**
 
 ```
 sudo apt install ./deb/socat_1.7.4.1-3ubuntu4_amd64.deb
@@ -89,37 +89,16 @@ Make the script executable.
 chmod +x launch.sh
 ```
 
-And start all configured serial bridges.
+Usage:
 
 ```shell
-./launch.sh start
+
+./launch.sh start     # Start all configured serial bridges
+./launch.sh stop      # Stop all running socat processes
+./launch.sh restart   # Restart all bridges
+./launch.sh status    # Display current running bridges
+./launch.sh version   # Display current running bridges
 ```
-
-Check the current status:
-
-```shell
-./launch.sh status
-```
-
-Stop all running bridges:
-
-```
-./launch.sh stop
-```
-
-Restart all bridges:
-
-```
-./launch.sh restart
-```
-
-Check version information:
-
-```
-./launch.sh version
-```
-
-
 
 
 
