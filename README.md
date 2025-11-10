@@ -57,6 +57,5 @@ newgrp dialout
 
 ```
 apt download socat 
-apt download jq 
 ```
 
