@@ -1,51 +1,123 @@
-# Readme
+# Serial TCP Server
 
-fiibot-serial-bridge
+A lightweight multi-port **serial-to-TCP bridge** based on `socat`.  
+This tool allows multiple serial devices (e.g., `/dev/ttyUSB0`, `/dev/ttyS0`)  
+to be exposed as independent TCP servers for remote access.
+
+一個基於 `socat` 的輕量級多埠 **串口轉 TCP 伺服器**，  
+可同時將多個串口設備（如 `/dev/ttyUSB0`, `/dev/ttyS0`）  
+透過網路提供遠端連線使用。
 
 
 
-## Quick Start
+## Features 
 
-### 安裝 socat
+- Supports multiple serial interfaces defined in `config.ini`  
 
-```shell
+- Each serial port maps to a dedicated TCP port  
+
+  ```ini
+  [ports]
+  /dev/ttyUSB0=5000
+  /dev/ttyUSB1=5001
+  ; /dev/ttyS0=5002
+  ```
+
+
+
+## Quick Start 
+
+### 1. Install `socat` 
+
+**Online installation**
+
+```bash
 sudo apt update
-sudo apt install socat yq
+sudo apt install socat
 ```
 
-離線安裝 socat
+**Offline installation **
 
-```shell
+```
 sudo apt install ./deb/socat_1.7.4.1-3ubuntu4_amd64.deb
 ```
 
+### 2. Set User Permission
 
-
-### 配置權限
+Allow the current user to access serial devices such as `/dev/ttyUSB*` or `/dev/ttyS*`.
 
 ```shell
-# 把帳號加入 dialout 群組
+# Add the current user to the dialout group
 sudo usermod -a -G dialout $USER
-# 讓變更立即生效
+
+# Apply the change immediately (no logout required)
 newgrp dialout
 ```
 
-> 驗證
->
-> ```shell
-> groups
-> ```
->
-> 應該會看到 `dialout` 出現
+Verify:
 
-
-
-### 配置參數
-
-```shell
+```
+groups
 ```
 
+If you see `dialout` in the output, the permission is correctly set.
 
+### 3. Configure Ports 
+
+Edit the `config.ini` file to define which serial devices will be bridged to which TCP ports.
+
+```ini
+[ports]
+/dev/ttyUSB0=5000
+/dev/ttyUSB1=5001
+/dev/ttyS0=5002
+```
+
+Each line defines one mapping:
+
+```
+<serial_device>=<tcp_port>
+```
+
+Example: `/dev/ttyUSB0` will open a TCP server on port `5000`.
+
+### 4. Launch the Server 
+
+Make the script executable.
+
+```shell
+chmod +x launch.sh
+```
+
+And start all configured serial bridges.
+
+```shell
+./launch.sh start
+```
+
+Check the current status:
+
+```shell
+./launch.sh status
+```
+
+Stop all running bridges:
+
+```
+./launch.sh stop
+```
+
+Restart all bridges:
+
+```
+./launch.sh restart
+```
+
+Check version information:
+
+```
+./launch.sh version
+```
 
 
 
