@@ -4,7 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+
 ---
+
+## [0.2.0] - 2025-11-14
+
+### Added
+
+- Systemd service support
+
+### Changed
+
+**launch.sh** rewritten for improved structure and reliability
+
+- Migrated from direct TCP bridging to UNIX socket + ncat broker architecture.
+- Added clear startup, shutdown, and status output messages.
+- Added automatic cleanup of stale UNIX socket files.
+- Improved process detection and graceful termination.
+
+### Updated
+
+- Updated installation instructions to include both `socat` and `ncat`.
+- Added new section: Test the Serial TCP Server with examples.
+- Added Systemd Service Integration guide.
+- Added Architecture & Design Rationale section including both legacy and new architectures.
+- Improved formatting and examples in the “Script Usage” section.
+
+
 
 ## [0.1.0] - 2025-11-10
 
