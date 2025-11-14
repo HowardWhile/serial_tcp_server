@@ -142,34 +142,62 @@ function stop_all()
 function status_all()
 # ---------------------------------
 {
-  echo "Currently active socat servers:"
-  
-  # 取得所有 socat 進程 (僅包含 tcp-l: 的橋接)
-  local socat_list
-  socat_list=$(pgrep -a socat | grep "tcp-l:")
+  echo "----------------------------------------"
+  echo "Serial TCP Server - Current Status"
+  echo "----------------------------------------"
 
-  if [ -z "$socat_list" ]; then
-    echo "No socat instances running."
+  # 取得 socat 與 ncat 進程清單
+  local socat_list ncat_list
+  socat_list=$(pgrep -a socat)
+  ncat_list=$(pgrep -a ncat | grep -- "--broker")
+
+  if [ -z "$socat_list" ] && [ -z "$ncat_list" ]; then
+    echo "No active bridges or brokers running."
+    echo
     return
   fi
 
+  # 顯示 Raw Command Lines 
   echo
-  echo "[ Raw Command Lines ]"
+  echo "[Raw Processes]"
   echo "$socat_list"
+  echo "$ncat_list"
   echo
 
-  echo "[ Parsed Connections ]"
-  echo "$socat_list" | while read -r line; do
-    # 從字串中萃取 TCP port 與最後的 device 名稱
-    port=$(echo "$line" | sed -nE 's/.*tcp-l:([0-9]+).*/\1/p')
-    dev=$(echo "$line" | awk '{print $NF}')
-    if [ -n "$port" ] && [ -n "$dev" ]; then
-      printf "  Port %-5s → %s\n" "$port" "$dev"
-    else
-      # 如果格式不符，保留原始行（保險機制）
-      echo "  $line"
+  # 解析 socat UNIX-LISTEN（serial bridge）
+  echo "[Serial Bridges (UNIX-LISTEN)]"
+  echo "$socat_list" | grep "UNIX-LISTEN" | while read -r line; do
+    sock=$(echo "$line" | sed -nE 's/.*UNIX-LISTEN:([^, ]+).*/\1/p')
+    dev=$(echo "$line" | sed -nE 's/.*FILE:([^, ]+).*/\1/p')
+    if [ -n "$sock" ] && [ -n "$dev" ]; then
+      printf "  %s → %-25s\n" "$dev" "$sock" 
     fi
   done
+  echo
+
+  # 解析 socat UNIX-CONNECT(relay)
+  echo "[Relays (UNIX-CONNECT → TCP)]"
+  echo "$socat_list" | grep "UNIX-CONNECT" | while read -r line; do
+    sock=$(echo "$line" | sed -nE 's/.*UNIX-CONNECT:([^, ]+).*/\1/p')
+    port=$(echo "$line" | sed -nE 's/.*TCP:127.0.0.1:([0-9]+).*/\1/p')
+    if [ -n "$sock" ] && [ -n "$port" ]; then
+      printf "  %-25s → TCP:%s\n" "$sock" "$port"
+    fi
+  done
+  echo
+
+  # 解析 ncat broker 
+  echo "[TCP Brokers]"
+  echo "$ncat_list" | while read -r line; do
+    port=$(echo "$line" | sed -nE 's/.*--listen[[:space:]]+([0-9]+).*/\1/p')
+    pid=$(echo "$line" | awk '{print $1}')
+    if [ -n "$port" ]; then
+      printf "  TCP:%-6s (PID %s)\n" "$port" "$pid"
+    fi
+  done
+  echo
+
+  echo "Status check completed."
   echo
 }
 # ---------------------------------
