@@ -1,7 +1,7 @@
 #!/bin/bash
-# ================================================================
+# ------------------------------------------------------------------
 #  Serial TCP Server - Launch Script
-# ================================================================
+# ------------------------------------------------------------------
 #  Version: 0.1.0
 #  Author: Howard Cheng
 #  Created: 2025-11-10
@@ -12,7 +12,7 @@
 #    Each serial device defined in 'config.ini' will be exposed as
 #    a TCP server port, allowing remote connections over the network.
 #
-# ================================================================
+# ------------------------------------------------------------------
 
 CONFIG_FILE="./config.ini"
 BAUD=115200
@@ -31,7 +31,7 @@ function parse_config()
     [[ -z "$line" || "$line" =~ ^# ]] && continue
     # 解析 section
     if [[ "$line" =~ ^\[(.*)\]$ ]]; then
-      section="${BASH_REMATCH[1]}"
+	  section="${BASH_REMATCH[1]}"
       continue
     fi
     # 只解析 [ports] 區塊內的 key=value
@@ -48,47 +48,96 @@ function start_all()
 # ---------------------------------
 {
   parse_config
-  echo "Starting socat TCP servers..."
+  echo "Starting Serial TCP Server..."
+  
   for dev in "${!PORTS[@]}"; do
-    port=${PORTS[$dev]}
+    port_broker=${PORTS[$dev]}                   
+    sock_path="/tmp/serial_bridge_${port_broker}.sock"
+
     if [ ! -e "$dev" ]; then
       echo "Warning: $dev not found, skipping."
       continue
     fi
-    if pgrep -f "socat.*${dev}" >/dev/null; then
-      echo "socat for $dev already running."
-      continue
-    fi
-    echo "Launching $dev on TCP port $port ..."
-    nohup socat tcp-l:${port},reuseaddr,fork ${dev},raw,echo=0,b${BAUD} >/dev/null 2>&1 &
-  done
-  echo "All available serial ports launched."
-}
 
+    # 清除舊 socket
+    [ -S "$sock_path" ] && rm -f "$sock_path"
+
+    echo
+    echo "Launching bridge ${dev} TCP:${port_broker}"
+
+    # [serial bridge] serial → UNIX socket
+    if ! pgrep -f "socat.*UNIX-LISTEN:${sock_path}.*${dev}" >/dev/null; then
+      echo "  [serial bridge] ${dev} → ${sock_path} ..."
+      socat UNIX-LISTEN:${sock_path},reuseaddr FILE:${dev},b${BAUD},raw,echo=0 &
+    else
+      echo "  [serial bridge] already running."
+    fi
+
+    # [broker] ncat TCP server
+    if ! pgrep -f "ncat.*--listen ${port_broker}" >/dev/null; then
+      echo "  [broker] on TCP:${port_broker} ..."
+      ncat --broker --listen ${port_broker} &
+    else
+      echo "  [broker] already running."
+    fi
+
+    # [relay] UNIX socket → TCP broker
+    if ! pgrep -f "socat.*UNIX-CONNECT:${sock_path}.*TCP:127.0.0.1:${port_broker}" >/dev/null; then
+      echo "  [relay] ${sock_path} → TCP:${port_broker} ..."
+      until [ -S "$sock_path" ]; do sleep 0.1; done
+      while ! (echo > /dev/tcp/127.0.0.1/$port_broker) >/dev/null 2>&1; do sleep 0.1; done
+      socat UNIX-CONNECT:${sock_path} TCP:127.0.0.1:${port_broker} &
+    else
+      echo "  [relay] already running."
+    fi
+
+  done
+
+  echo
+  echo " All bridges launched successfully."
+}
 # ---------------------------------
 function stop_all()
 # ---------------------------------
 {
-  echo "Stopping all socat processes..."
+  echo "Stopping Serial TCP Server..."
+  echo
 
-  # 找出所有 tcp-l: 的 socat 進程 PID
-  local pids
-  pids=$(pgrep -a socat | grep "tcp-l:" | awk '{print $1}')
+  # 取得所有 socat / ncat 進程
+  socat_pids=$(pgrep -a socat | grep -E "UNIX|TCP" | awk '{print $1}')
+  ncat_pids=$(pgrep -a ncat | grep -- "--broker" | awk '{print $1}')
 
-  if [ -z "$pids" ]; then
-    echo "No socat instances found."
-    return
+  # 殺掉 socat
+  if [ -n "$socat_pids" ]; then
+    echo "Stopping socat bridges and relays..."
+    for pid in $socat_pids; do
+      echo "  [socat] killed PID $pid"
+      kill "$pid" 2>/dev/null
+    done
+  else
+    echo "No socat processes found."
   fi
+  echo
 
-  # 逐一殺掉
-  echo "$pids" | while read -r pid; do
-    echo "Killing socat PID $pid"
-    kill "$pid"
-  done
+  # 殺掉 ncat
+  if [ -n "$ncat_pids" ]; then
+    echo "Stopping ncat brokers..."
+    for pid in $ncat_pids; do
+      echo "  [ncat] killed PID $pid"
+      kill "$pid" 2>/dev/null
+    done
+  else
+    echo "No ncat broker processes found."
+  fi
+  echo
 
-  echo "All socat instances stopped."
+  # 清理 UNIX socket
+  echo "Cleaning up UNIX sockets..."
+  find /tmp -maxdepth 1 -type s -name "serial_bridge_*.sock" -delete
+
+  echo
+  echo "All Serial TCP Server processes stopped."
 }
-
 # ---------------------------------
 function status_all()
 # ---------------------------------
