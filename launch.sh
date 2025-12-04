@@ -24,21 +24,27 @@ declare -A PORTS
 function parse_config()
 {
   local section=""
-  while IFS= read -r line; do
+
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Config file not found: $CONFIG_FILE" >&2
+    return 1
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
     # 去除開頭與結尾空白
     line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     # 跳過空行與註解
     [[ -z "$line" || "$line" =~ ^# ]] && continue
     # 解析 section
     if [[ "$line" =~ ^\[(.*)\]$ ]]; then
-	  section="${BASH_REMATCH[1]}"
+      section="${BASH_REMATCH[1]}"
       continue
     fi
     # 只解析 [ports] 區塊內的 key=value
     if [[ "$section" == "ports" && "$line" =~ ^([^=]+)=(.*)$ ]]; then
       local dev="${BASH_REMATCH[1]}"
       local port="${BASH_REMATCH[2]}"
-      PORTS["$dev"]=$port
+      PORTS["$dev"]="$port"
     fi
   done < "$CONFIG_FILE"
 }
