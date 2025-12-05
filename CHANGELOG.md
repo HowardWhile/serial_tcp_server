@@ -5,8 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-
 ---
+
+## [0.3.0] - 2025-12-05
+
+### Added
+
+- Added support for **baud rate** configuration via `config.ini`  
+  (`<device>=<baud>,<tcp_port>`)
+
+### Updated
+
+- Updated configuration examples in `config.ini` to use the new `<baud>,<port>` format.
+- Improved internal comments and structure inside `launch.sh` for readability and maintenance.
+
+
 
 ## [0.2.0] - 2025-11-14
 
