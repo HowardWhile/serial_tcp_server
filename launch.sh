@@ -15,8 +15,9 @@
 # ------------------------------------------------------------------
 
 CONFIG_FILE="./config.ini"
-BAUD=115200
-declare -A PORTS
+declare -A PORTS   # dev -> port
+declare -A BAUDS   # dev -> baud
+DEFAULT_BAUD=115200
 
 # ---------------------------------
 # Parse INI configuration
@@ -24,28 +25,40 @@ declare -A PORTS
 function parse_config()
 {
   local section=""
-
-  if [[ ! -f "$CONFIG_FILE" ]]; then
-    echo "Config file not found: $CONFIG_FILE" >&2
-    return 1
-  fi
+  local line dev baud port
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     # 去除開頭與結尾空白
     line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     # 跳過空行與註解
-    [[ -z "$line" || "$line" =~ ^# ]] && continue
-    # 解析 section
+    case "$line" in
+      ''|\#*|\;*)
+        continue
+        ;;
+    esac
+
+    # SECTION 標頭
     if [[ "$line" =~ ^\[(.*)\]$ ]]; then
       section="${BASH_REMATCH[1]}"
       continue
     fi
-    # 只解析 [ports] 區塊內的 key=value
-    if [[ "$section" == "ports" && "$line" =~ ^([^=]+)=(.*)$ ]]; then
-      local dev="${BASH_REMATCH[1]}"
-      local port="${BASH_REMATCH[2]}"
+
+    # ----------------------------
+    # 解析 [ports] 行：
+    # ex: /dev/ttySUSB1=115200,5000
+    # ----------------------------
+    if [[ "$section" == "ports" && "$line" =~ ^([^=]+)=([0-9]+)[[:space:]]*,[[:space:]]*([0-9]+)$ ]]; then
+      dev="${BASH_REMATCH[1]}"
+      baud="${BASH_REMATCH[2]}"
+      port="${BASH_REMATCH[3]}"
+
+      # trim 一下 dev
+      dev="$(echo "$dev" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
       PORTS["$dev"]="$port"
+      BAUDS["$dev"]="$baud"
     fi
+
   done < "$CONFIG_FILE"
 }
 
@@ -55,9 +68,10 @@ function start_all()
 {
   parse_config
   echo "Starting Serial TCP Server..."
-  
+
   for dev in "${!PORTS[@]}"; do
-    port_broker=${PORTS[$dev]}                   
+    port_broker=${PORTS[$dev]}
+    baud="${BAUDS[$dev]:-$DEFAULT_BAUD}"
     sock_path="/tmp/serial_bridge_${port_broker}.sock"
 
     if [ ! -e "$dev" ]; then
@@ -69,12 +83,12 @@ function start_all()
     [ -S "$sock_path" ] && rm -f "$sock_path"
 
     echo
-    echo "Launching bridge ${dev} TCP:${port_broker}"
+    echo "Launching bridge ${dev} baud:${baud} TCP:${port_broker}"
 
     # [serial bridge] serial → UNIX socket
     if ! pgrep -f "socat.*UNIX-LISTEN:${sock_path}.*${dev}" >/dev/null; then
       echo "  [serial bridge] ${dev} → ${sock_path} ..."
-      socat UNIX-LISTEN:${sock_path},reuseaddr FILE:${dev},b${BAUD},raw,echo=0 &
+      socat UNIX-LISTEN:${sock_path},reuseaddr FILE:${dev},b${baud},raw,echo=0 &
     else
       echo "  [serial bridge] already running."
     fi
@@ -90,8 +104,14 @@ function start_all()
     # [relay] UNIX socket → TCP broker
     if ! pgrep -f "socat.*UNIX-CONNECT:${sock_path}.*TCP:127.0.0.1:${port_broker}" >/dev/null; then
       echo "  [relay] ${sock_path} → TCP:${port_broker} ..."
-      until [ -S "$sock_path" ]; do sleep 0.1; done
-      while ! (echo > /dev/tcp/127.0.0.1/$port_broker) >/dev/null 2>&1; do sleep 0.1; done
+      # 等 UNIX socket 建立
+      until [ -S "$sock_path" ]; do
+        sleep 0.1
+      done
+      # 等 TCP broker 起來
+      while ! (echo > "/dev/tcp/127.0.0.1/${port_broker}") >/dev/null 2>&1; do
+        sleep 0.1
+      done
       socat UNIX-CONNECT:${sock_path} TCP:127.0.0.1:${port_broker} &
     else
       echo "  [relay] already running."
