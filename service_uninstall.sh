@@ -2,9 +2,9 @@
 # ------------------------------------------------------------------
 #  Serial TCP Server - Service Remover
 # ------------------------------------------------------------------
-#  Version: 0.2.0
+#  Version: 0.3.0
 #  Author: Howard Cheng
-#  Created: 2025-11-10
+#  Created: 2025-12-15
 #  License: MIT
 #
 #  Description:
