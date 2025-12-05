@@ -2,9 +2,9 @@
 # ------------------------------------------------------------------
 #  Serial TCP Server - Launch Script
 # ------------------------------------------------------------------
-#  Version: 0.2.0
+#  Version: 0.3.0
 #  Author: Howard Cheng
-#  Created: 2025-11-10
+#  Created: 2025-12-15
 #  License: MIT
 #
 #  Description:
@@ -233,7 +233,7 @@ function version_info()
   echo "----------------------------------------"
   echo " Serial TCP Server - Launch Script"
   echo "----------------------------------------"
-  echo "Project Version : 0.2.0"
+  echo "Project Version : 0.3.0"
   echo "Author          : Howard Cheng"
   echo "License         : MIT"
   echo
